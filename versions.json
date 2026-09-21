@@ -40,6 +40,17 @@
     "D": "Best effort. Kept while it costs nothing; no guarantee for arbitrary patches."
   },
   "versions": {
+    "26.3": {
+      "minecraft": "26.3",
+      "loader": "0.19.5",
+      "java": 25,
+      "buildJava": 25,
+      "buildFamily": "modern-unobfuscated",
+      "adapterFamily": "network-chat",
+      "tier": "A",
+      "runtimeVerified": false,
+      "module": "versions:26.3"
+    },
     "26.2": {
       "minecraft": "26.2",
       "loader": "0.19.5",
@@ -47,7 +58,7 @@
       "buildJava": 25,
       "buildFamily": "modern-unobfuscated",
       "adapterFamily": "network-chat",
-      "tier": "A",
+      "tier": "B",
       "runtimeVerified": false,
       "module": "versions:26.2"
     },

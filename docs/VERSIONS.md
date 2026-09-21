@@ -14,7 +14,7 @@ Command API `1.3.1`. Every row is a target configured in [`versions.json`](../ve
 
 A local build says nothing about CI, and neither says the mod was ever run in the game. Nothing in this file is hand-written.
 
-Build manifest: `1.3.1`, 14 artifact(s).
+Build manifest: `1.3.1`, 15 artifact(s).
 
 CI status: workflow **Build** run [33278509806](https://github.com/hernan-lc/commandclient/actions/runs/33278509806) on `main` (success), recorded from commit `5fdc9e8d`.
 
@@ -33,7 +33,8 @@ CI status: workflow **Build** run [33278509806](https://github.com/hernan-lc/com
 | 1.21.8 | B | 21 | 0.19.3 | legacy-remapped | network-chat | ✅ | ✅ | — | `commandapi-1.3.1+mc1.21.8.jar` |
 | 1.21.11 | B | 21 | 0.19.3 | legacy-remapped | network-chat | ✅ | ✅ | — | `commandapi-1.3.1+mc1.21.11.jar` |
 | 26.1 | B | 25 | 0.19.5 | modern-unobfuscated | network-chat | ✅ | ✅ | — | `commandapi-1.3.1+mc26.1.jar` |
-| 26.2 | A | 25 | 0.19.5 | modern-unobfuscated | network-chat | ✅ | ✅ | — | `commandapi-1.3.1+mc26.2.jar` |
+| 26.2 | B | 25 | 0.19.5 | modern-unobfuscated | network-chat | ✅ | ✅ | — | `commandapi-1.3.1+mc26.2.jar` |
+| 26.3 | A | 25 | 0.19.5 | modern-unobfuscated | network-chat | ✅ | — | — | `commandapi-1.3.1+mc26.3.jar` |
 
 ## Support tiers
 
@@ -82,6 +83,7 @@ CI status: workflow **Build** run [33278509806](https://github.com/hernan-lc/com
 ./gradlew :versions:1.21.11:build
 ./gradlew :versions:26.1:build
 ./gradlew :versions:26.2:build
+./gradlew :versions:26.3:build
 ```
 
 See [ADDING_VERSION.md](ADDING_VERSION.md) to add a target and [BUILD.md](BUILD.md) for the build layout.

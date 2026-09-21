@@ -54,7 +54,8 @@ through the current 26.x releases: shared HTTP, config and API code lives in
 | 1.21.8 | B | 21 | ✅ | ✅ | — |
 | 1.21.11 | B | 21 | ✅ | ✅ | — |
 | 26.1 | B | 25 | ✅ | ✅ | — |
-| 26.2 | A | 25 | ✅ | ✅ | — |
+| 26.2 | B | 25 | ✅ | ✅ | — |
+| 26.3 | A | 25 | ✅ | — | — |
 
 `—` means not verified, not failed. See [docs/VERSIONS.md](docs/VERSIONS.md) for what each column means.
 <!-- SUPPORTED_VERSIONS_END -->
