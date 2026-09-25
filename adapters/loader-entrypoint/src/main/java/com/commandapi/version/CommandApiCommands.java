@@ -19,6 +19,10 @@ public final class CommandApiCommands {
     /**
      * A raw chat message as typed, leading slash included
      * (legacy {@code LocalPlayer.chat} passes the full text).
+     *
+     * @param player the local player; replies print in chat through it.
+     *               Anything without the chat-display methods (e.g. a packet
+     *               listener) degrades to log-only output.
      */
     public static boolean dispatchChat(Object player, String message) {
         if (message == null) {
@@ -35,6 +39,10 @@ public final class CommandApiCommands {
     /**
      * A command without the slash ({@code commandSigned} and
      * {@code ClientPacketListener.sendCommand} already strip it).
+     *
+     * @param player the local player; replies print in chat through it.
+     *               Anything without the chat-display methods (e.g. a packet
+     *               listener) degrades to log-only output.
      */
     public static boolean dispatchCommand(Object player, String command) {
         if (command == null) {

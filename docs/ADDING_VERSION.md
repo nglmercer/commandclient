@@ -98,7 +98,9 @@ A new or custom family must also keep the `/commandapi` chat commands working:
 add a mixin that intercepts the generation's outgoing command path and calls
 `CommandApiCommands.dispatchCommand` (or `dispatchChat` when the slash is still
 attached), cancelling the send when it returns true — see the three existing
-mixins. Ship its config as `commandapi.mixins.json`: for built-in families that
+mixins. Pass the local player as the receiver, not the mixin target: when the
+target is the connection rather than the player, replies silently degrade to
+log-only output. Ship its config as `commandapi.mixins.json`: for built-in families that
 means `adapters/<family>/src/main/resources/commandapi.mixins.json` (picked up
 automatically); for `custom` put it in `versions/<id>/src/main/resources`.
 `fabric.mod.json` already lists that file name, and Loom generates the refmap.
