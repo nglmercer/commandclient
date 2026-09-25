@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -79,6 +80,23 @@ class CommandApiServiceTest {
             assertTrue(saved.isEphemeral());
 
             assertTrue(joined(service.runCommand("status")).contains("Running"));
+        } finally {
+            service.stop();
+        }
+    }
+
+    @Test
+    void loginTogglePersistsWithoutRestart(@TempDir Path dir) {
+        CommandApiService service = new CommandApiService(dir, new FakeBridge(), "test", "test");
+        service.start();
+        try {
+            String address = service.getServerAddress();
+            assertTrue(joined(service.runCommand("login off")).contains("disabled"));
+            assertTrue(service.isRunning());
+            assertEquals(address, service.getServerAddress(),
+                    "toggle must not restart the server or re-roll the port");
+            assertTrue(joined(service.runCommand("status")).contains("login=off"));
+            assertFalse(ConfigLoader.load(dir).isLoginSummary());
         } finally {
             service.stop();
         }

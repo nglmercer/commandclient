@@ -3,7 +3,8 @@
   "package": "com.commandapi.version.mixin",
   "compatibilityLevel": "JAVA_8",
   "client": [
-    "CommandApiSendCommandMixin"
+    "CommandApiSendCommandMixin",
+    "CommandApiLoginMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -130,7 +130,12 @@ response format.
 Type `/commandapi ...` in chat to inspect and change the config without leaving
 the game. These lines are intercepted client-side: they are answered locally
 and never sent to the server. Every change is written to `commandapi.json` and
-the server restarts on it at once.
+applied at once: bind settings (`port`, `host`, `auth`, `token`) restart the
+server on the new config, while `login` applies without a restart.
+
+When you join a world, the `status` summary (bound address, port mode, auth
+and token state) is printed in chat automatically. Turn it off with
+`/commandapi login off`.
 
 | Command | Effect |
 |---|---|
@@ -140,6 +145,7 @@ the server restarts on it at once.
 | `/commandapi host <address>` | Change the bind address (warns when exposed without auth) |
 | `/commandapi auth <on\|off>` | Turning on requires a token first |
 | `/commandapi token <secret\|clear>` | Setting a token enables auth; `clear` disables auth too |
+| `/commandapi login <on\|off>` | World-join summary on/off (default on; no restart) |
 | `/commandapi reload` | Re-read `commandapi.json` from disk and restart |
 | `/commandapi restart` | Restart on the current config |
 

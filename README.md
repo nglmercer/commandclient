@@ -30,7 +30,8 @@ through the current 26.x releases: shared HTTP, config and API code lives in
 - **Bearer-token authentication**, off by default for a loopback-only server.
 - **Loopback by default**; exposing the API to the network is opt-in and warned about.
 - **Ephemeral port by default** (`port: 0`); the OS picks a free port so instances never collide.
-- **In-game config commands**: `/commandapi status`, `/commandapi port`, `/commandapi host`, `/commandapi auth`, `/commandapi token`, `/commandapi reload`.
+- **In-game config commands**: `/commandapi status`, `/commandapi port`, `/commandapi host`, `/commandapi auth`, `/commandapi token`, `/commandapi login`, `/commandapi reload`.
+- **Login summary**: joining a world prints the bound address, port mode, auth and token state in chat (toggle with `/commandapi login off`).
 - **Multi-version builds** from one source tree, one JAR per Minecraft version.
 - **No Fabric API required** — only Fabric Loader.
 
@@ -137,14 +138,16 @@ Runtime settings live in `<minecraft>/config/commandapi.json`:
   "port": 0,
   "host": "127.0.0.1",
   "token": "",
-  "authEnabled": false
+  "authEnabled": false,
+  "loginSummary": true
 }
 ```
 
 `"port": 0` means automatic: the OS picks a free port each start. An example is
 in [`config/commandapi.json`](config/commandapi.json). Binding to anything
 other than loopback lets other machines send chat and commands as you — enable
-authentication if you do.
+authentication if you do. `"loginSummary": true` prints a short config summary
+in chat every time you join a world.
 
 ### In-game commands
 
@@ -159,6 +162,7 @@ Type these in chat (they never leave your client). Every change is saved to
 | `/commandapi host <address>` | Default `127.0.0.1`; warns when exposed without auth |
 | `/commandapi auth <on\|off>` | Needs a token first to turn on |
 | `/commandapi token <secret\|clear>` | Setting a token enables auth; clearing disables it |
+| `/commandapi login <on\|off>` | Show a config summary on world join (default on; no restart) |
 | `/commandapi reload` | Re-read `commandapi.json` (for hand edits) and restart |
 | `/commandapi restart` | Restart the server on the current config |
 

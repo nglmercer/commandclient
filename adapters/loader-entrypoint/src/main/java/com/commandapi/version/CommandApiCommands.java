@@ -61,6 +61,24 @@ public final class CommandApiCommands {
         return line.substring(space + 1);
     }
 
+    /**
+     * Shows the minimal config summary when the player joins a world, unless
+     * disabled via {@code /commandapi login off}. Called by the per-generation
+     * login mixins; silent when the service is not ready yet.
+     */
+    public static void onLogin(Object player) {
+        CommandApiMod mod = CommandApiMod.getInstance();
+        if (mod == null || mod.getService() == null) {
+            return;
+        }
+        if (!mod.getService().getConfig().isLoginSummary()) {
+            return;
+        }
+        for (String response : mod.getService().runCommand("status")) {
+            CommandApiFeedback.tell(player, response);
+        }
+    }
+
     private static void runAndTell(Object player, String args) {
         CommandApiMod mod = CommandApiMod.getInstance();
         if (mod == null || mod.getService() == null) {

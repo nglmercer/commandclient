@@ -27,12 +27,18 @@ public final class ApiConfig {
     private final String host;
     private final String token;
     private final boolean authEnabled;
+    private final boolean loginSummary;
 
     public ApiConfig(String host, int port, String token, boolean authEnabled) {
+        this(host, port, token, authEnabled, true);
+    }
+
+    public ApiConfig(String host, int port, String token, boolean authEnabled, boolean loginSummary) {
         this.host = host == null ? DEFAULT_HOST : host;
         this.port = normalizePort(port);
         this.token = token == null ? "" : token;
         this.authEnabled = authEnabled;
+        this.loginSummary = loginSummary;
     }
 
     /** Out-of-range ports fall back to ephemeral instead of failing to bind. */
@@ -73,6 +79,11 @@ public final class ApiConfig {
         return authEnabled;
     }
 
+    /** When true (the default), joining a world prints a short config summary in chat. */
+    public boolean isLoginSummary() {
+        return loginSummary;
+    }
+
     /** True when the server binds an interface other than loopback. */
     public boolean isExposedBeyondLoopback() {
         return !("127.0.0.1".equals(host) || "localhost".equals(host) || "::1".equals(host));
@@ -83,6 +94,7 @@ public final class ApiConfig {
     public String toString() {
         return "ApiConfig{host=" + host + ", port=" + port
                 + ", authEnabled=" + authEnabled
-                + ", tokenConfigured=" + !token.isEmpty() + "}";
+                + ", tokenConfigured=" + !token.isEmpty()
+                + ", loginSummary=" + loginSummary + "}";
     }
 }

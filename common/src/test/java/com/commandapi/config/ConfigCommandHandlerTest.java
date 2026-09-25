@@ -19,7 +19,9 @@ class ConfigCommandHandlerTest {
         boolean running = true;
         boolean applySucceeds = true;
         boolean reloadSucceeds = true;
+        boolean updateSucceeds = true;
         int applyCalls;
+        int updateCalls;
 
         @Override
         public ApiConfig currentConfig() {
@@ -48,6 +50,16 @@ class ConfigCommandHandlerTest {
         @Override
         public boolean reloadFromDisk() {
             return reloadSucceeds;
+        }
+
+        @Override
+        public boolean updateLoginSummary(boolean enabled) {
+            updateCalls++;
+            if (updateSucceeds) {
+                config = new ApiConfig(config.getHost(), config.getPort(), config.getToken(),
+                        config.isAuthEnabled(), enabled);
+            }
+            return updateSucceeds;
         }
     }
 
@@ -179,6 +191,57 @@ class ConfigCommandHandlerTest {
     }
 
     @Test
+    void helpMentionsLogin() {
+        assertTrue(joined(handler.handle("")).contains("/commandapi login"));
+    }
+
+    @Test
+    void loginOffDisablesSummaryWithoutRestart() {
+        String text = joined(handler.handle("login off"));
+        assertFalse(actions.config.isLoginSummary());
+        assertEquals(1, actions.updateCalls);
+        assertEquals(0, actions.applyCalls);
+        assertTrue(text.contains("disabled"));
+    }
+
+    @Test
+    void loginOnEnablesSummary() {
+        handler.handle("login off");
+        handler.handle("login on");
+        assertTrue(actions.config.isLoginSummary());
+        assertEquals(2, actions.updateCalls);
+        assertEquals(0, actions.applyCalls);
+    }
+
+    @Test
+    void loginRejectsGarbage() {
+        assertTrue(joined(handler.handle("login maybe")).contains("Usage"));
+        assertEquals(0, actions.updateCalls);
+    }
+
+    @Test
+    void loginMissingArgShowsUsageAndState() {
+        String text = joined(handler.handle("login"));
+        assertTrue(text.contains("Usage"));
+        assertTrue(text.contains("currently on"));
+    }
+
+    @Test
+    void bindChangesPreserveLoginSummary() {
+        handler.handle("login off");
+        handler.handle("port 9123");
+        handler.handle("host 0.0.0.0");
+        handler.handle("token s3cret");
+        assertFalse(actions.config.isLoginSummary());
+        assertTrue(joined(handler.handle("status")).contains("login=off"));
+    }
+
+    @Test
+    void statusShowsLoginState() {
+        assertTrue(joined(handler.handle("status")).contains("login=on"));
+    }
+
+    @Test
     void reloadReports() {
         assertTrue(joined(handler.handle("reload")).contains("reloaded"));
     }
@@ -197,7 +260,7 @@ class ConfigCommandHandlerTest {
     @Test
     void everyLineHasNoEmbeddedNewline() {
         for (String args : new String[]{"", "status", "port 1", "host x", "auth on", "token t",
-                "reload", "restart", "bogus", "port abc"}) {
+                "login", "login off", "reload", "restart", "bogus", "port abc"}) {
             for (String line : handler.handle(args)) {
                 assertFalse(line.contains("\n"), "line must be single-line: " + line);
             }

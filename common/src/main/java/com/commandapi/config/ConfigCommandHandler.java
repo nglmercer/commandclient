@@ -36,6 +36,15 @@ public final class ConfigCommandHandler {
 
         /** Re-reads the config file from disk and restarts on it. */
         boolean reloadFromDisk();
+
+        /**
+         * Turns the world-join summary on or off, effective immediately and
+         * persisted to disk. Unlike {@link #applyAndRestart}, this never
+         * restarts the server, so an ephemeral port is not re-rolled.
+         *
+         * @return true when the change was persisted.
+         */
+        boolean updateLoginSummary(boolean enabled);
     }
 
     private final Actions actions;
@@ -72,6 +81,9 @@ public final class ConfigCommandHandler {
         if ("token".equals(sub)) {
             return token(argument(tokens, 1));
         }
+        if ("login".equals(sub)) {
+            return login(argument(tokens, 1));
+        }
         if ("reload".equals(sub)) {
             return reload();
         }
@@ -91,6 +103,7 @@ public final class ConfigCommandHandler {
         lines.add("[CommandAPI] /commandapi host <address> - default 127.0.0.1");
         lines.add("[CommandAPI] /commandapi auth <on|off>");
         lines.add("[CommandAPI] /commandapi token <secret|clear>");
+        lines.add("[CommandAPI] /commandapi login <on|off> - summary shown on world join");
         lines.add("[CommandAPI] /commandapi reload - re-read commandapi.json");
         return lines;
     }
@@ -109,7 +122,8 @@ public final class ConfigCommandHandler {
         lines.add("[CommandAPI] Config: host=" + config.getHost()
                 + " port=" + describePort(config) + portNote
                 + " auth=" + (config.isAuthEnabled() ? "on" : "off")
-                + " token=" + (config.getToken().isEmpty() ? "not set" : "set"));
+                + " token=" + (config.getToken().isEmpty() ? "not set" : "set")
+                + " login=" + (config.isLoginSummary() ? "on" : "off"));
         return lines;
     }
 
@@ -130,7 +144,7 @@ public final class ConfigCommandHandler {
             return single("[CommandAPI] Port must be 0-65535 - got " + port + ".");
         }
         ApiConfig current = actions.currentConfig();
-        return apply(new ApiConfig(current.getHost(), port, current.getToken(), current.isAuthEnabled()),
+        return apply(withPort(current, port),
                 port == ApiConfig.DEFAULT_PORT
                         ? "Port set to automatic."
                         : "Port set to " + port + ".");
@@ -148,7 +162,7 @@ public final class ConfigCommandHandler {
             return single("[CommandAPI] \"" + host + "\" is not a valid bind address.");
         }
         ApiConfig current = actions.currentConfig();
-        return apply(new ApiConfig(host, current.getPort(), current.getToken(), current.isAuthEnabled()),
+        return apply(withHost(current, host),
                 "Host set to " + host + ".");
     }
 
@@ -171,7 +185,7 @@ public final class ConfigCommandHandler {
             lines.add("[CommandAPI] Auth stays off until a token is configured.");
             return lines;
         }
-        return apply(new ApiConfig(current.getHost(), current.getPort(), current.getToken(), enabled),
+        return apply(withAuth(current, enabled),
                 "Authentication " + (enabled ? "enabled." : "disabled."));
     }
 
@@ -181,14 +195,41 @@ public final class ConfigCommandHandler {
         }
         ApiConfig current = actions.currentConfig();
         if ("clear".equalsIgnoreCase(arg)) {
-            return apply(new ApiConfig(current.getHost(), current.getPort(), "", false),
+            return apply(withToken(current, "", false),
                     "Token cleared and authentication disabled.");
         }
         if (arg.contains(" ")) {
             return single("[CommandAPI] The token must be a single word without spaces.");
         }
-        return apply(new ApiConfig(current.getHost(), current.getPort(), arg, true),
+        return apply(withToken(current, arg, true),
                 "Token updated and authentication enabled.");
+    }
+
+    private List<String> login(String arg) {
+        ApiConfig current = actions.currentConfig();
+        if (arg == null) {
+            List<String> lines = new ArrayList<String>();
+            lines.add("[CommandAPI] Usage: /commandapi login <on|off> - show a summary when joining a world.");
+            lines.add("[CommandAPI] Login summary is currently "
+                    + (current.isLoginSummary() ? "on." : "off."));
+            return lines;
+        }
+        boolean enabled;
+        if ("on".equalsIgnoreCase(arg) || "true".equalsIgnoreCase(arg)) {
+            enabled = true;
+        } else if ("off".equalsIgnoreCase(arg) || "false".equalsIgnoreCase(arg)) {
+            enabled = false;
+        } else {
+            return single("[CommandAPI] Usage: /commandapi login <on|off>.");
+        }
+        if (!actions.updateLoginSummary(enabled)) {
+            return single("[CommandAPI] Could not save commandapi.json - the change was kept for this session only.");
+        }
+        List<String> lines = new ArrayList<String>();
+        lines.add("[CommandAPI] Login summary " + (enabled ? "enabled." : "disabled.")
+                + " No restart needed.");
+        lines.add("[CommandAPI] " + currentPortLine());
+        return lines;
     }
 
     private List<String> reload() {
@@ -233,6 +274,26 @@ public final class ConfigCommandHandler {
             return "Serving at http://" + actions.runningAddress() + ".";
         }
         return "The server is not running.";
+    }
+
+    private static ApiConfig withPort(ApiConfig current, int port) {
+        return new ApiConfig(current.getHost(), port, current.getToken(),
+                current.isAuthEnabled(), current.isLoginSummary());
+    }
+
+    private static ApiConfig withHost(ApiConfig current, String host) {
+        return new ApiConfig(host, current.getPort(), current.getToken(),
+                current.isAuthEnabled(), current.isLoginSummary());
+    }
+
+    private static ApiConfig withAuth(ApiConfig current, boolean enabled) {
+        return new ApiConfig(current.getHost(), current.getPort(), current.getToken(),
+                enabled, current.isLoginSummary());
+    }
+
+    private static ApiConfig withToken(ApiConfig current, String token, boolean authEnabled) {
+        return new ApiConfig(current.getHost(), current.getPort(), token,
+                authEnabled, current.isLoginSummary());
     }
 
     private static String describePort(ApiConfig config) {

@@ -45,6 +45,22 @@ class ConfigLoaderTest {
         assertEquals(9001, config.getPort());
         assertEquals("127.0.0.1", config.getHost());
         assertFalse(config.isAuthEnabled());
+        assertTrue(config.isLoginSummary());
+    }
+
+    @Test
+    void loginSummaryDefaultsToTrue() {
+        assertTrue(ConfigLoader.load(null).isLoginSummary());
+        assertTrue(ApiConfig.defaults().isLoginSummary());
+        assertTrue(ConfigLoader.parse("{\"loginSummary\":null}").isLoginSummary());
+    }
+
+    @Test
+    void loginSummaryReadsAndRoundTrips(@TempDir Path dir) {
+        assertFalse(ConfigLoader.parse("{\"loginSummary\":false}").isLoginSummary());
+        assertTrue(ConfigLoader.save(dir,
+                new ApiConfig("127.0.0.1", 0, "", false, false)));
+        assertFalse(ConfigLoader.load(dir).isLoginSummary());
     }
 
     @Test

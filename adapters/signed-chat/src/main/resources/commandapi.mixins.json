@@ -3,7 +3,8 @@
   "package": "com.commandapi.version.mixin",
   "compatibilityLevel": "JAVA_8",
   "client": [
-    "CommandApiSignedChatMixin"
+    "CommandApiSignedChatMixin",
+    "CommandApiLoginMixin"
   ],
   "injectors": {
     "defaultRequire": 1

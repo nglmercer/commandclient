@@ -58,7 +58,8 @@ public final class ConfigLoader {
         int port = integer(json, "port", "api.port", ApiConfig.DEFAULT_PORT);
         String token = string(json, "token", "api.token", "");
         boolean authEnabled = bool(json, "authEnabled", "api.auth.enabled", false);
-        return new ApiConfig(host, port, token, authEnabled);
+        boolean loginSummary = bool(json, "loginSummary", "api.login.summary", true);
+        return new ApiConfig(host, port, token, authEnabled, loginSummary);
     }
 
     /** Parses a config document from raw JSON text. Never throws. */
@@ -90,6 +91,7 @@ public final class ConfigLoader {
             json.addProperty("port", config.getPort());
             json.addProperty("token", config.getToken());
             json.addProperty("authEnabled", config.isAuthEnabled());
+            json.addProperty("loginSummary", config.isLoginSummary());
             Path configPath = configDir.resolve(CONFIG_FILE_NAME);
             try (Writer writer = Files.newBufferedWriter(configPath, StandardCharsets.UTF_8)) {
                 PRETTY_GSON.toJson(json, writer);

@@ -107,6 +107,13 @@ public final class CommandApiService implements ConfigCommandHandler.Actions {
         return startServer();
     }
 
+    @Override
+    public synchronized boolean updateLoginSummary(boolean enabled) {
+        config = new ApiConfig(config.getHost(), config.getPort(), config.getToken(),
+                config.isAuthEnabled(), enabled);
+        return ConfigLoader.save(configDir, config);
+    }
+
     public synchronized ApiConfig getConfig() {
         return config;
     }
