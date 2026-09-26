@@ -30,7 +30,7 @@ through the current 26.x releases: shared HTTP, config and API code lives in
 - **Bearer-token authentication**, off by default for a loopback-only server.
 - **Loopback by default**; exposing the API to the network is opt-in and warned about.
 - **Ephemeral port by default** (`port: 0`); the OS picks a free port so instances never collide.
-- **In-game config commands**: `/commandapi status`, `/commandapi port`, `/commandapi host`, `/commandapi auth`, `/commandapi token`, `/commandapi login`, `/commandapi reload`.
+- **In-game config commands**: `/commandapi status`, `/commandapi port`, `/commandapi host`, `/commandapi auth`, `/commandapi token`, `/commandapi login`, `/commandapi reload`, `/commandapi restart`.
 - **Login summary**: joining a world prints the bound address, port mode, auth and token state in chat (toggle with `/commandapi login off`).
 - **Multi-version builds** from one source tree, one JAR per Minecraft version.
 - **No Fabric API required** — only Fabric Loader.
@@ -93,7 +93,8 @@ Adding a version is a configuration change, so keeping up is cheap — see
    with an automatically picked free port (see [Finding your port](#finding-your-port)).
 
 Java requirements follow Minecraft's own: Java 8 for 1.16.x, 17 for 1.18–1.20.4,
-21 for 1.20.6–1.21.x, 25 for 26.x. If Minecraft runs, the mod runs.
+21 for 1.20.6–1.21.x, 25 for 26.x. Build verification does not prove
+in-game compatibility; see the runtime verification column below.
 
 ## Finding your port
 
@@ -149,10 +150,17 @@ other than loopback lets other machines send chat and commands as you — enable
 authentication if you do. `"loginSummary": true` prints a short config summary
 in chat every time you join a world.
 
+The API reports `Command submitted` after forwarding a slash command. Minecraft
+may still reject it; the HTTP response does not confirm server execution.
+If a host or port change fails, the previous config and HTTP server are restored.
+
 ### In-game commands
 
 Type these in chat (they never leave your client). Every change is saved to
 `commandapi.json` and applied immediately:
+
+The client completes `/commandapi` subcommands and suggests common values for
+`port`, `host`, `auth`, `token`, and `login` after joining a world.
 
 | Command | What it does |
 |---|---|

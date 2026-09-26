@@ -10,6 +10,11 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.net.ServerSocket;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.io.OutputStream;
+import com.google.gson.JsonParser;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,7 +37,7 @@ class CommandApiServiceTest {
 
         @Override
         public ChatResult sendChat(String text) {
-            return ChatResult.ok("ok");
+            return ChatResult.ok(text.startsWith("/") ? "Command submitted" : "Message sent to chat");
         }
     }
 
@@ -63,7 +68,7 @@ class CommandApiServiceTest {
     }
 
     @Test
-    void commandChangesPortAndPersists(@TempDir Path dir) {
+    void commandChangesPortAndPersists(@TempDir Path dir) throws Exception {
         CommandApiService service = new CommandApiService(dir, new FakeBridge(), "test", "test");
         service.start();
         try {
@@ -75,11 +80,14 @@ class CommandApiServiceTest {
             assertTrue(service.isRunning());
             int second = service.getHttpServerManager().getPort();
             assertTrue(second > 0);
+            assertEquals(second, addressPort(dir));
 
             ApiConfig saved = ConfigLoader.load(dir);
             assertTrue(saved.isEphemeral());
 
             assertTrue(joined(service.runCommand("status")).contains("Running"));
+            assertTrue(joined(service.runCommand("restart")).contains("Server restarted"));
+            assertEquals(service.getHttpServerManager().getPort(), addressPort(dir));
         } finally {
             service.stop();
         }
@@ -121,5 +129,87 @@ class CommandApiServiceTest {
             first.stop();
         }
         assertTrue(taken > 0);
+    }
+
+    private static int addressPort(Path dir) throws Exception {
+        String body = new String(Files.readAllBytes(dir.resolve(ConfigLoader.ADDRESS_FILE_NAME)), StandardCharsets.UTF_8);
+        return new JsonParser().parse(body).getAsJsonObject().get("port").getAsInt();
+    }
+
+    private static int statusCode(int port) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL("http://127.0.0.1:" + port + "/api/status").openConnection();
+        connection.setConnectTimeout(1000);
+        connection.setReadTimeout(1000);
+        try {
+            return connection.getResponseCode();
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    @Test
+    void failedPortChangeRestoresServerConfigAndAddress(@TempDir Path dir) throws Exception {
+        CommandApiService service = new CommandApiService(dir, new FakeBridge(), "test", "test");
+        service.start();
+        try (ServerSocket occupied = new ServerSocket(0)) {
+            int oldPort = service.getHttpServerManager().getPort();
+            ApiConfig oldConfig = service.getConfig();
+            assertFalse(service.applyAndRestart(new ApiConfig("127.0.0.1", occupied.getLocalPort(), "", false)));
+            assertTrue(service.isRunning());
+            assertEquals(oldConfig.getPort(), service.getConfig().getPort());
+            assertEquals(oldConfig.getPort(), ConfigLoader.load(dir).getPort());
+            int restoredPort = service.getHttpServerManager().getPort();
+            assertEquals(restoredPort, addressPort(dir));
+            assertEquals(200, statusCode(restoredPort));
+            assertTrue(oldPort > 0);
+        } finally {
+            service.stop();
+        }
+    }
+
+    @Test
+    void successfulRestartUpdatesAddressFile(@TempDir Path dir) throws Exception {
+        CommandApiService service = new CommandApiService(dir, new FakeBridge(), "test", "test");
+        service.start();
+        try {
+            int firstPort = service.getHttpServerManager().getPort();
+            try (ServerSocket reservation = new ServerSocket(0)) {
+                int nextPort = reservation.getLocalPort();
+                reservation.close();
+                assertTrue(service.applyAndRestart(new ApiConfig("127.0.0.1", nextPort, "", false)));
+                assertEquals(nextPort, addressPort(dir));
+                assertEquals(nextPort, ConfigLoader.load(dir).getPort());
+                assertEquals(200, statusCode(nextPort));
+                assertTrue(firstPort > 0);
+            }
+        } finally {
+            service.stop();
+        }
+        assertFalse(Files.exists(dir.resolve(ConfigLoader.ADDRESS_FILE_NAME)));
+    }
+
+    @Test
+    void httpCommandResponseSaysSubmitted(@TempDir Path dir) throws Exception {
+        CommandApiService service = new CommandApiService(dir, new FakeBridge(), "test", "test");
+        service.start();
+        try {
+            HttpURLConnection connection = (HttpURLConnection) new URL("http://127.0.0.1:"
+                    + service.getHttpServerManager().getPort() + "/api/chat").openConnection();
+            connection.setRequestMethod("POST");
+            connection.setDoOutput(true);
+            byte[] body = "{\"text\":\"/time set day\"}".getBytes(StandardCharsets.UTF_8);
+            try (OutputStream output = connection.getOutputStream()) {
+                output.write(body);
+            }
+            assertEquals(200, connection.getResponseCode());
+            byte[] response = new byte[1024];
+            int count = connection.getInputStream().read(response);
+            String text = new String(response, 0, count, StandardCharsets.UTF_8);
+            assertTrue(text.contains("Command submitted"));
+            assertFalse(text.contains("Command executed"));
+            connection.disconnect();
+        } finally {
+            service.stop();
+        }
     }
 }

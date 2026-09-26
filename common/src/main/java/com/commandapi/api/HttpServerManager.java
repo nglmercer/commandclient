@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +47,7 @@ public final class HttpServerManager {
     private final TokenAuthenticator authenticator;
     private final String modVersion;
     private final String minecraftVersion;
+    private final Path configDir;
 
     private HttpServer server;
     private ExecutorService executor;
@@ -53,11 +55,17 @@ public final class HttpServerManager {
 
     public HttpServerManager(ApiConfig config, MinecraftBridge bridge,
                              String modVersion, String minecraftVersion) {
+        this(config, bridge, modVersion, minecraftVersion, null);
+    }
+
+    public HttpServerManager(ApiConfig config, MinecraftBridge bridge,
+                             String modVersion, String minecraftVersion, Path configDir) {
         this.config = config;
         this.bridge = bridge;
         this.authenticator = new TokenAuthenticator(config);
         this.modVersion = modVersion;
         this.minecraftVersion = minecraftVersion;
+        this.configDir = configDir;
     }
 
     /** Binds and starts the server. Returns false if the port could not be bound. */
@@ -134,6 +142,7 @@ public final class HttpServerManager {
             if (running != null) {
                 running.stop(0);
             }
+            com.commandapi.config.ConfigLoader.deleteAddress(configDir);
         }, "commandapi-shutdown");
         Runtime.getRuntime().addShutdownHook(shutdownHook);
     }

@@ -1,6 +1,7 @@
 package com.commandapi.minecraft;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -25,33 +26,55 @@ public abstract class ClientThreadBridge implements MinecraftBridge {
     /** Minecraft's client-thread executor. */
     protected abstract Executor clientExecutor();
 
+    /** True when already on Minecraft's client thread. */
+    protected abstract boolean isClientThread();
+
     /** Performs the send; always invoked on the client thread. */
     protected abstract ChatResult sendChatOnClientThread(String text);
 
     @Override
     public final ChatResult sendChat(String text) {
-        CompletableFuture<ChatResult> future = new CompletableFuture<>();
+        return onClientThread(() -> sendChatOnClientThread(text),
+                ChatResult.failure("Timed out waiting for the Minecraft client thread"),
+                error -> ChatResult.failure(error));
+    }
+
+    protected final <T> T onClientThread(Callable<T> action, T timeoutValue,
+                                         java.util.function.Function<String, T> failure) {
+        if (isClientThread()) {
+            try {
+                return action.call();
+            } catch (Exception e) {
+                return failure.apply("Error: " + e);
+            }
+        }
+        CompletableFuture<T> future = new CompletableFuture<>();
         try {
             clientExecutor().execute(() -> {
+                if (future.isDone()) {
+                    return;
+                }
                 try {
-                    future.complete(sendChatOnClientThread(text));
+                    future.complete(action.call());
                 } catch (Throwable t) {
-                    future.complete(ChatResult.failure("Error: " + t));
+                    future.complete(failure.apply("Error: " + t));
                 }
             });
         } catch (RuntimeException e) {
-            return ChatResult.failure("Could not schedule on client thread: " + e);
+            return failure.apply("Could not schedule on client thread: " + e);
         }
 
         try {
             return future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
-            return ChatResult.failure("Timed out waiting for the Minecraft client thread");
+            future.cancel(false);
+            return timeoutValue;
         } catch (ExecutionException e) {
-            return ChatResult.failure("Error: " + e.getCause());
+            return failure.apply("Error: " + e.getCause());
         } catch (InterruptedException e) {
+            future.cancel(false);
             Thread.currentThread().interrupt();
-            return ChatResult.failure("Interrupted while waiting for the Minecraft client thread");
+            return failure.apply("Interrupted while waiting for the Minecraft client thread");
         }
     }
 }

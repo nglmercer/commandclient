@@ -95,7 +95,7 @@ curl -X POST http://127.0.0.1:8080/api/chat \
 {
   "results": [
     { "text": "hello", "success": true, "output": "Message sent to chat" },
-    { "text": "/time set day", "success": true, "output": "Command sent" }
+    { "text": "/time set day", "success": true, "output": "Command submitted" }
   ],
   "success": true
 }

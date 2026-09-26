@@ -10,6 +10,8 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.AtomicMoveNotSupportedException;
 
 /**
  * Loads {@link ApiConfig} from {@code <configDir>/commandapi.json}, falling back
@@ -93,9 +95,7 @@ public final class ConfigLoader {
             json.addProperty("authEnabled", config.isAuthEnabled());
             json.addProperty("loginSummary", config.isLoginSummary());
             Path configPath = configDir.resolve(CONFIG_FILE_NAME);
-            try (Writer writer = Files.newBufferedWriter(configPath, StandardCharsets.UTF_8)) {
-                PRETTY_GSON.toJson(json, writer);
-            }
+            writeJson(configPath, json);
             return true;
         } catch (IOException | RuntimeException e) {
             System.err.println("[CommandAPI] Failed to write config: " + e.getMessage());
@@ -107,9 +107,9 @@ public final class ConfigLoader {
      * Records the address that was actually bound, for ephemeral-port
      * discovery. Best effort: failures are logged, never thrown.
      */
-    public static void writeAddress(Path configDir, String host, int port) {
+    public static boolean writeAddress(Path configDir, String host, int port) {
         if (configDir == null) {
-            return;
+            return true;
         }
         try {
             Files.createDirectories(configDir);
@@ -118,11 +118,28 @@ public final class ConfigLoader {
             json.addProperty("port", port);
             json.addProperty("url", "http://" + host + ":" + port);
             Path addressPath = configDir.resolve(ADDRESS_FILE_NAME);
-            try (Writer writer = Files.newBufferedWriter(addressPath, StandardCharsets.UTF_8)) {
-                PRETTY_GSON.toJson(json, writer);
-            }
+            writeJson(addressPath, json);
+            return true;
         } catch (IOException | RuntimeException e) {
             System.err.println("[CommandAPI] Failed to write " + ADDRESS_FILE_NAME + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    private static void writeJson(Path target, JsonObject json) throws IOException {
+        Path temporary = Files.createTempFile(target.getParent(), target.getFileName().toString(), ".tmp");
+        try {
+            try (Writer writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {
+                PRETTY_GSON.toJson(json, writer);
+            }
+            try {
+                Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(temporary);
         }
     }
 

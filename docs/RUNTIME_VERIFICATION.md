@@ -8,7 +8,7 @@ This project therefore tracks two separate things, and never lets one imply the
 other:
 
 | Level | Meaning | Recorded in |
-|---|---|---|
+|---|---|
 | Build verified | The target compiles and produces a JAR | build manifest / CI |
 | Runtime verified | Minecraft was launched and the API exercised | `runtimeVerified` in `versions.json` |
 
@@ -30,18 +30,18 @@ authentication, limits and the missing-player path.
 
 ## Per-family checklist
 
-Run this once per **adapter family**, not once per Minecraft version: versions
-in the same family share the adapter, so verifying one covers the API used by
-the rest.
+Run these representative versions to check each adapter and build-family
+boundary. Record `runtimeVerified: true` only for the exact Minecraft versions
+actually launched and exercised.
 
 Representative versions:
 
-| Adapter family | Verify with | Covers |
+| Adapter family | Verify with |
 |---|---|---|
-| `legacy-chat` | 1.16.5 | 1.16.1, 1.16.5, 1.18.2 |
-| `signed-chat` | 1.19.2 | 1.19.2 |
-| `network-chat` (legacy build) | 1.21.11 | 1.19.4 through 1.21.11 |
-| `network-chat` (modern build) | 26.2 | 26.1, 26.2 |
+| `legacy-chat` | 1.16.5 |
+| `signed-chat` | 1.19.2 |
+| `network-chat` (legacy build) | 1.21.11 |
+| `network-chat` (modern build) | 26.3 |
 
 The last row matters: the same adapter source is compiled by two different
 build families, so both need a runtime check.
@@ -82,10 +82,14 @@ export PORT=$(python3 -c "import json; print(json.load(open('config/commandapi-a
    ```bash
    curl -s -X POST http://127.0.0.1:$PORT/api/chat -d '{"messages":["one","two"]}'
    ```
-8. **In-game commands**: type `/commandapi status` (answered locally, nothing
-   reaches the server), then `/commandapi port 0` and confirm the new address
-   in chat matches a fresh `GET /api/status`. This exercises the generation's
-   mixin.
+8. **In-game commands**: type `/commanda` and confirm Tab suggests
+   `/commandapi`; type `/commandapi ` and confirm its subcommands appear.
+   Then type `/commandapi status` and `/commandapi restart`
+   (answered locally, nothing reaches the server). Then change to a known free
+   port and confirm the address file and `GET /api/status` match. Try a port
+   held by another process and confirm the old config, address file, and API
+   are restored. Finally use `/commandapi port 0` and confirm a fresh bound
+   address. This exercises the generation's mixin and rollback path.
 9. **Disconnect** back to the main menu, repeat step 3 (must be 503 again, not a
    crash), then **reconnect** and repeat step 5. This catches adapters that
    cache a stale player or connection.

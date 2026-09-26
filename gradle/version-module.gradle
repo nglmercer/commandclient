@@ -48,6 +48,14 @@ dependencies {
 
     // Minecraft ships Gson; compile against it without bundling it.
     compileOnly 'com.google.code.gson:gson:2.10.1'
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }
 
 // Shared code: the version independent core, the Fabric entrypoint (identical

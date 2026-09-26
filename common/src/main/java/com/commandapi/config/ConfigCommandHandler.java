@@ -28,7 +28,8 @@ public final class ConfigCommandHandler {
         String runningAddress();
 
         /**
-         * Persists {@code newConfig} and restarts the server on it.
+         * Restarts the server on {@code newConfig}, persisting it only after a
+         * successful bind and restoring the old server on failure.
          *
          * @return true when the server is serving the new config afterwards.
          */
@@ -105,6 +106,7 @@ public final class ConfigCommandHandler {
         lines.add("[CommandAPI] /commandapi token <secret|clear>");
         lines.add("[CommandAPI] /commandapi login <on|off> - summary shown on world join");
         lines.add("[CommandAPI] /commandapi reload - re-read commandapi.json");
+        lines.add("[CommandAPI] /commandapi restart - restart the HTTP server");
         return lines;
     }
 

@@ -63,6 +63,11 @@ class ClientThreadBridgeTest {
         }
 
         @Override
+        protected boolean isClientThread() {
+            return Thread.currentThread().getName().equals("fake-client-thread");
+        }
+
+        @Override
         protected ChatResult sendChatOnClientThread(String text) {
             ranOn.set(Thread.currentThread());
             if ("boom".equals(text)) {

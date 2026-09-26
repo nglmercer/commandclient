@@ -26,31 +26,36 @@ public final class CommandApiFeedback {
 
     private static boolean tellInGame(Object player, String text) {
         if (player == null) {
+            diagnostic(null, "player lookup", new NullPointerException("local player is null"));
             return false;
         }
+        String attempted = "Component.literal(String)";
         try {
             Class<?> componentType = Class.forName("net.minecraft.network.chat.Component");
-            Object component = literal(componentType, text);
+            Object component = literal(player, componentType, text);
             if (component == null) {
                 return false;
             }
             try {
+                attempted = "displayClientMessage(Component, boolean)";
                 player.getClass()
                         .getMethod("displayClientMessage", componentType, boolean.class)
                         .invoke(player, component, Boolean.FALSE);
                 return true;
             } catch (NoSuchMethodException e) {
+                attempted = "sendSystemMessage(Component)";
                 player.getClass()
                         .getMethod("sendSystemMessage", componentType)
                         .invoke(player, component);
                 return true;
             }
         } catch (ReflectiveOperationException | RuntimeException e) {
+            diagnostic(player, attempted, e);
             return false;
         }
     }
 
-    private static Object literal(Class<?> componentType, String text) {
+    private static Object literal(Object player, Class<?> componentType, String text) {
         try {
             return componentType.getMethod("literal", String.class).invoke(null, text);
         } catch (ReflectiveOperationException | RuntimeException e) {
@@ -59,8 +64,19 @@ public final class CommandApiFeedback {
                         .getConstructor(String.class)
                         .newInstance(text);
             } catch (ReflectiveOperationException | RuntimeException e2) {
+                diagnostic(player, "Component.literal(String)", e);
+                diagnostic(player, "TextComponent(String)", e2);
                 return null;
             }
         }
+    }
+
+    private static void diagnostic(Object player, String method, Exception e) {
+        CommandApiMod mod = CommandApiMod.getInstance();
+        String version = mod == null || mod.getService() == null
+                ? "unknown" : mod.getService().getMinecraftVersion();
+        System.err.println("[CommandAPI] Chat feedback unavailable: minecraft=" + version
+                + " playerClass=" + (player == null ? "null" : player.getClass().getName())
+                + " method=" + method + " exception=" + e.getClass().getName());
     }
 }

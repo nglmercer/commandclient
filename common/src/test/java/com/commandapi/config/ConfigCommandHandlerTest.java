@@ -87,6 +87,7 @@ class ConfigCommandHandlerTest {
     @Test
     void helpKeywordShowsHelp() {
         assertEquals(handler.handle(""), handler.handle("help"));
+        assertTrue(joined(handler.handle("help")).contains("/commandapi restart"));
     }
 
     @Test

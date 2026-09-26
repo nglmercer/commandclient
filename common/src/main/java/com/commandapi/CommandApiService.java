@@ -44,6 +44,7 @@ public final class CommandApiService implements ConfigCommandHandler.Actions {
 
     /** Starts the server and logs the endpoint banner. */
     public synchronized void start() {
+        stopServer();
         config = ConfigLoader.load(configDir);
         if (startServer()) {
             logStartupInfo();
@@ -54,7 +55,6 @@ public final class CommandApiService implements ConfigCommandHandler.Actions {
 
     public synchronized void stop() {
         stopServer();
-        ConfigLoader.deleteAddress(configDir);
     }
 
     /**
@@ -94,17 +94,26 @@ public final class CommandApiService implements ConfigCommandHandler.Actions {
         if (newConfig == null) {
             return false;
         }
+        ApiConfig oldConfig = config;
         stopServer();
         config = newConfig;
-        ConfigLoader.save(configDir, newConfig);
-        return startServer();
+        if (startServer()) {
+            if (ConfigLoader.save(configDir, newConfig)) {
+                return true;
+            }
+            stopServer();
+        }
+        config = oldConfig;
+        ConfigLoader.save(configDir, oldConfig);
+        if (!startServer()) {
+            System.err.println("[CommandAPI] Rollback failed: previous HTTP endpoint could not be rebound");
+        }
+        return false;
     }
 
     @Override
     public synchronized boolean reloadFromDisk() {
-        stopServer();
-        config = ConfigLoader.load(configDir);
-        return startServer();
+        return applyAndRestart(ConfigLoader.load(configDir));
     }
 
     @Override
@@ -116,6 +125,10 @@ public final class CommandApiService implements ConfigCommandHandler.Actions {
 
     public synchronized ApiConfig getConfig() {
         return config;
+    }
+
+    public String getMinecraftVersion() {
+        return minecraftVersion;
     }
 
     /** The live server manager, or null when the server is not running. */
@@ -131,13 +144,16 @@ public final class CommandApiService implements ConfigCommandHandler.Actions {
     }
 
     private boolean startServer() {
-        httpServerManager = new HttpServerManager(config, bridge, modVersion, minecraftVersion);
+        httpServerManager = new HttpServerManager(config, bridge, modVersion, minecraftVersion, configDir);
         if (!httpServerManager.start()) {
             httpServerManager = null;
             return false;
         }
-        ConfigLoader.writeAddress(configDir,
-                httpServerManager.getHost(), httpServerManager.getPort());
+        if (!ConfigLoader.writeAddress(configDir,
+                httpServerManager.getHost(), httpServerManager.getPort())) {
+            stopServer();
+            return false;
+        }
         return true;
     }
 
@@ -146,6 +162,7 @@ public final class CommandApiService implements ConfigCommandHandler.Actions {
             httpServerManager.stop();
             httpServerManager = null;
         }
+        ConfigLoader.deleteAddress(configDir);
     }
 
     private void logStartupInfo() {

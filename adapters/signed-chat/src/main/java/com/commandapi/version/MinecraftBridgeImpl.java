@@ -20,18 +20,25 @@ public final class MinecraftBridgeImpl extends ClientThreadBridge {
 
     @Override
     public boolean isInWorld() {
-        return Minecraft.getInstance().player != null;
+        return onClientThread(() -> Minecraft.getInstance().player != null, false, error -> false);
     }
 
     @Override
     public String getPlayerName() {
-        LocalPlayer player = Minecraft.getInstance().player;
-        return player == null ? null : player.getName().getString();
+        return onClientThread(() -> {
+            LocalPlayer player = Minecraft.getInstance().player;
+            return player == null ? null : player.getName().getString();
+        }, null, error -> null);
     }
 
     @Override
     protected Executor clientExecutor() {
         return Minecraft.getInstance();
+    }
+
+    @Override
+    protected boolean isClientThread() {
+        return Minecraft.getInstance().isSameThread();
     }
 
     @Override
@@ -43,7 +50,7 @@ public final class MinecraftBridgeImpl extends ClientThreadBridge {
         // null preview: the client has not run chat preview for this message.
         if (text.startsWith("/")) {
             player.commandSigned(text.substring(1), null);
-            return ChatResult.ok("Command sent");
+            return ChatResult.ok("Command submitted");
         }
         player.chatSigned(text, null);
         return ChatResult.ok("Message sent to chat");

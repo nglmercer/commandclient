@@ -4,7 +4,8 @@
   "compatibilityLevel": "JAVA_8",
   "client": [
     "CommandApiSendCommandMixin",
-    "CommandApiLoginMixin"
+    "CommandApiLoginMixin",
+    "CommandApiSuggestionsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

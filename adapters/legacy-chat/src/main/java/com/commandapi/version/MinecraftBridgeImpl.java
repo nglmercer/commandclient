@@ -19,18 +19,25 @@ public final class MinecraftBridgeImpl extends ClientThreadBridge {
 
     @Override
     public boolean isInWorld() {
-        return Minecraft.getInstance().player != null;
+        return onClientThread(() -> Minecraft.getInstance().player != null, false, error -> false);
     }
 
     @Override
     public String getPlayerName() {
-        LocalPlayer player = Minecraft.getInstance().player;
-        return player == null ? null : player.getName().getString();
+        return onClientThread(() -> {
+            LocalPlayer player = Minecraft.getInstance().player;
+            return player == null ? null : player.getName().getString();
+        }, null, error -> null);
     }
 
     @Override
     protected Executor clientExecutor() {
         return Minecraft.getInstance();
+    }
+
+    @Override
+    protected boolean isClientThread() {
+        return Minecraft.getInstance().isSameThread();
     }
 
     @Override
@@ -40,6 +47,6 @@ public final class MinecraftBridgeImpl extends ClientThreadBridge {
             return ChatResult.failure("Player not available (not in world?)");
         }
         player.chat(text);
-        return ChatResult.ok(text.startsWith("/") ? "Command sent" : "Message sent to chat");
+        return ChatResult.ok(text.startsWith("/") ? "Command submitted" : "Message sent to chat");
     }
 }
