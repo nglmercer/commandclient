@@ -8,7 +8,7 @@ This project therefore tracks two separate things, and never lets one imply the
 other:
 
 | Level | Meaning | Recorded in |
-|---|---|
+|---|---|---|
 | Build verified | The target compiles and produces a JAR | build manifest / CI |
 | Runtime verified | Minecraft was launched and the API exercised | `runtimeVerified` in `versions.json` |
 
@@ -18,10 +18,10 @@ verified, never a tick.
 
 ## Why this is not fully automated
 
-Running the client in CI needs a real display, a Mojang account for anything
-past the main menu, and a game session per Minecraft version. A headless
-GitHub runner cannot log in to a server or spawn a player, so an automated
-"the chat message arrived" check is not possible on hosted runners.
+Running the client needs a display and a world or server session for each
+Minecraft version. A local singleplayer world can exercise the API without an
+online account. The hosted build jobs do not provide a game session, so their
+green status does not establish that chat or command submission works in game.
 
 What *is* automated: every target compiles, its metadata is inspected inside
 the JAR, and the whole HTTP layer is covered by unit tests against a fake
@@ -37,7 +37,7 @@ actually launched and exercised.
 Representative versions:
 
 | Adapter family | Verify with |
-|---|---|---|
+|---|---|
 | `legacy-chat` | 1.16.5 |
 | `signed-chat` | 1.19.2 |
 | `network-chat` (legacy build) | 1.21.11 |
@@ -48,10 +48,11 @@ build families, so both need a runtime check.
 
 ### Steps
 
-The port is automatic by default, so resolve it once per session from the
-address file (paths below use your launcher's `config/` dir):
+The port is automatic by default. Read the bound URL and port from the address
+file (paths below use your launcher's `config/` dir):
 
 ```bash
+export API_URL=$(python3 -c "import json; print(json.load(open('config/commandapi-address.json'))['url'])")
 export PORT=$(python3 -c "import json; print(json.load(open('config/commandapi-address.json'))['port'])")
 ```
 
@@ -62,25 +63,27 @@ export PORT=$(python3 -c "import json; print(json.load(open('config/commandapi-a
    usually means the entrypoint or `fabric.mod.json` is wrong.
 3. **Before joining a world**, check the offline path:
    ```bash
-   curl -s http://127.0.0.1:$PORT/api/status            # in_world: false
+   curl -s "$API_URL/api/status"                         # in_world: false
    curl -s -o /dev/null -w '%{http_code}\n' \
-        -X POST http://127.0.0.1:$PORT/api/chat -d '{"text":"hi"}'   # 503
+        -X POST "$API_URL/api/chat" -d '{"text":"hi"}'  # 503
    ```
 4. **Join a world or server**, then:
    ```bash
-   curl -s http://127.0.0.1:$PORT/api/status            # in_world: true, player_name set
+   curl -s "$API_URL/api/status"                         # in_world: true, player_name set
    ```
 5. **Send a chat message** and confirm it appears in the chat as your player:
    ```bash
-   curl -s -X POST http://127.0.0.1:$PORT/api/chat -d '{"text":"runtime check"}'
+   curl -s -X POST "$API_URL/api/chat" -d '{"text":"runtime check"}'
    ```
-6. **Send a command** and confirm it executes:
+6. **Send a command** that this player may use, and verify its effect in game.
+   The HTTP `Command submitted` result alone is insufficient. For a local world
+   with cheats enabled, one option is:
    ```bash
-   curl -s -X POST http://127.0.0.1:$PORT/api/chat -d '{"text":"/time set day"}'
+   curl -s -X POST "$API_URL/api/chat" -d '{"text":"/time set day"}'
    ```
 7. **Send a batch** and confirm ordering:
    ```bash
-   curl -s -X POST http://127.0.0.1:$PORT/api/chat -d '{"messages":["one","two"]}'
+   curl -s -X POST "$API_URL/api/chat" -d '{"messages":["one","two"]}'
    ```
 8. **In-game commands**: type `/commanda` and confirm Tab suggests
    `/commandapi`; type `/commandapi ` and confirm its subcommands appear.
@@ -89,11 +92,13 @@ export PORT=$(python3 -c "import json; print(json.load(open('config/commandapi-a
    port and confirm the address file and `GET /api/status` match. Try a port
    held by another process and confirm the old config, address file, and API
    are restored. Finally use `/commandapi port 0` and confirm a fresh bound
-   address. This exercises the generation's mixin and rollback path.
+   address. Re-read `commandapi-address.json` and refresh `API_URL` and `PORT`
+   after every successful restart. This exercises the generation's mixin
+   and rollback path.
 9. **Disconnect** back to the main menu, repeat step 3 (must be 503 again, not a
    crash), then **reconnect** and repeat step 5. This catches adapters that
    cache a stale player or connection.
-10. **Close Minecraft** and confirm the port is free and the address file is gone:
+10. **Close Minecraft** and confirm the latest bound port is free and the address file is gone:
    ```bash
    ss -ltn | grep $PORT || echo "port released"
    ls config/commandapi-address.json || echo "address file removed"

@@ -16,9 +16,9 @@ or server you are on. Treat the port like a remote control for your player.
 ## In-game commands
 
 `/commandapi ...` runs with your privileges by construction: it is typed at
-your keyboard, answered inside your client, and never touches the network. No
-token is needed (or accepted) there. The same caution as hand-editing the file
-applies — `/commandapi host 0.0.0.0` exposes you, and the command tells you so
+your keyboard, answered inside your client, and never sent as a Minecraft
+server command. No token is needed (or accepted) there. The same caution as
+hand-editing the file applies — `/commandapi host 0.0.0.0` exposes you, and the command tells you so
 unless auth is on.
 
 The API is never exposed to the network unless you change `host` yourself.
@@ -52,33 +52,31 @@ What was reviewed and what the code does:
 |---|---|
 | Network binding | Bound explicitly to `config.host`; loopback default. Never binds `0.0.0.0` implicitly. |
 | Bearer parsing | Requires the exact `Bearer ` prefix; a malformed or absent header is a 401, never a bypass. |
-| Token comparison | Length check then constant-time compare, so a wrong token cannot be recovered by timing. |
+| Token comparison | Length check, then a comparison that does not exit early for equal-length tokens. |
 | Auth bypass | Skipped only when `authEnabled` is false **or** the token is empty — both make the open state explicit. |
 | Token logging | Never logged. `ApiConfig.toString()` reports only whether a token is configured (there is a test for this). |
 | Request size | Capped at 64 KiB while reading; a larger body is a 413, and the read stops rather than buffering it all. |
 | Batch size | At most 32 messages per request. |
-| Message length | At most 256 characters, matching Minecraft's own chat limit. |
+| Message length | At most 256 Java UTF-16 code units per message. |
 | Malformed JSON | Caught and answered with 400; parse failures never reach the game. |
-| HTTP methods | `/api/chat` is POST only, `/api/status` GET only, both with an `Allow` header. |
+| HTTP methods | `/api/chat` and `/api/execute` are POST only; `/api/status` is GET only. Wrong-method responses carry an `Allow` header. |
 | Unknown paths | JSON 404 from a catch-all handler instead of an empty response. |
-| Uncaught exceptions | Every handler is wrapped: the client always gets a response and a worker thread can never die silently. |
+| Uncaught exceptions | Handlers convert unexpected failures to JSON `500` when the client connection is still open. |
 | Disconnected clients | A broken pipe while writing is logged, not rethrown. |
 | Concurrency | Handlers are stateless; the only shared state is the config and the bridge. The config reference is swapped only while the server is stopped for a restart, and every service method is synchronized. |
-| Client thread | All Minecraft mutation is scheduled onto the client thread with a 5 s timeout (see below). |
-| Shutdown | `stop()` is idempotent, releases the port, and a JVM shutdown hook runs it if the client exits first. Worker threads are daemons. |
+| Client thread | Minecraft status reads and sends are scheduled onto the client thread with a 5 s timeout (see below). |
+| Shutdown | `stop()` is idempotent and releases the port. A JVM shutdown hook stops the HTTP server and removes the address file if the client exits first. Worker threads are daemons. |
 
 ## Thread safety
 
-HTTP handlers run on worker threads. Minecraft may only be mutated from the
-client thread, so `ClientThreadBridge` schedules every send onto
+HTTP handlers run on worker threads. Minecraft state is accessed on the
+client thread, so `ClientThreadBridge` schedules status reads and sends onto
 `Minecraft.getInstance()` (which is itself an `Executor`) and waits up to five
 seconds for the result. On timeout the request answers with an error instead of
 blocking forever, and a rejected schedule (client shutting down) is reported
 rather than thrown.
-
-`isInWorld()` and `getPlayerName()` read the `player` reference directly. That
-is a single reference read, not a mutation, so it cannot corrupt game state —
-the worst case is a status response that is one tick stale.
+The bridge re-reads the player and connection for each send after reaching the
+client thread, so a reconnect does not reuse a cached connection.
 
 ## Reporting
 

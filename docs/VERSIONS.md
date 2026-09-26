@@ -9,16 +9,17 @@ Command API `1.3.2`. Every row is a target configured in [`versions.json`](../ve
 | Column | Meaning |
 |---|---|
 | **Artifact** | A JAR for this target exists in the local build manifest. |
-| **CI** | A real GitHub Actions run built this target. `❌` means it ran and failed; `—` means it never ran or no result was recorded. |
+| **Prior CI run** | The recorded GitHub Actions run built this target at its recorded commit. `❌` means it ran and failed; `—` means it never ran or no result was recorded. This column does not verify the current source or release. |
 | **Runtime** | Minecraft was launched with the mod and the API exercised. `—` means not done. |
 
-A local build says nothing about CI, and neither says the mod was ever run in the game. Nothing in this file is hand-written.
+A local build says nothing about a past CI run, and neither says the mod was ever run in the game. Nothing in this file is hand-written.
 
 Build manifest: `1.3.2`, 15 artifact(s).
 
 CI status: workflow **Build** run [33278509806](https://github.com/hernan-lc/commandclient/actions/runs/33278509806) on `main` (success), recorded from commit `5fdc9e8d`.
+The CI ticks below describe that historical commit only.
 
-| Minecraft | Tier | Java | Loader | Build family | Adapter | Artifact | CI | Runtime | File |
+| Minecraft | Tier | Java | Loader | Build family | Adapter | Artifact | Prior CI run | Runtime | File |
 | --------- | :--: | ---: | ------ | ------------ | ------- | :------: | :-: | :-----: | ---- |
 | 1.16.1 | D | 8 | 0.14.24 | legacy-remapped | legacy-chat | ✅ | ✅ | — | `commandapi-1.3.2+mc1.16.1.jar` |
 | 1.16.5 | C | 8 | 0.14.24 | legacy-remapped | legacy-chat | ✅ | ✅ | — | `commandapi-1.3.2+mc1.16.5.jar` |

@@ -1,5 +1,6 @@
 // Minimal Command API client.
 // Run with: node docs/example.js "hello world"
+// Batch:    node docs/example.js --batch "hello" "/seed"
 //
 // The port is automatic by default, so the client reads it from the address
 // file the mod rewrites on every start (override with COMMANDAPI_URL, and
@@ -20,7 +21,7 @@ function addressFromFile() {
   }
 }
 
-const BASE_URL = process.env.COMMANDAPI_URL || addressFromFile() || 'http://127.0.0.1:8080';
+const BASE_URL = process.env.COMMANDAPI_URL || addressFromFile();
 const TOKEN = process.env.COMMANDAPI_TOKEN || null; // needed only when authEnabled is true
 
 function headers() {
@@ -32,14 +33,18 @@ function headers() {
 
 async function status() {
   const response = await fetch(`${BASE_URL}/api/status`, { headers: headers() });
-  return response.json();
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || `HTTP ${response.status}`);
+  }
+  return data;
 }
 
-async function send(text) {
+async function send(body) {
   const response = await fetch(`${BASE_URL}/api/chat`, {
     method: 'POST',
     headers: headers(),
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(body),
   });
 
   const data = await response.json();
@@ -49,7 +54,20 @@ async function send(text) {
   return data;
 }
 
+// A single text uses {text: ...} and returns data.result.
+async function sendOne(text) {
+  return send({ text });
+}
+
+// An array uses {messages: [...]} and returns data.results, even for one item.
+async function sendBatch(messages) {
+  return send({ messages });
+}
+
 async function main() {
+  if (!BASE_URL) {
+    throw new Error('No commandapi-address.json found; set COMMANDAPI_CONFIG or COMMANDAPI_URL');
+  }
   const state = await status();
   console.log(`Minecraft ${state.minecraft_version}, in world: ${state.in_world}`);
   if (!state.in_world) {
@@ -57,8 +75,18 @@ async function main() {
     return;
   }
 
-  const text = process.argv[2] || 'hello from the Command API';
-  console.log(await send(text));
+  if (process.argv[2] === '--batch') {
+    const messages = process.argv.slice(3);
+    if (messages.length === 0) {
+      throw new Error('Usage: node docs/example.js --batch "hello" "/seed"');
+    }
+    const data = await sendBatch(messages);
+    console.log(JSON.stringify(data.results, null, 2));
+  } else {
+    const text = process.argv[2] || 'hello from the Command API';
+    const data = await sendOne(text);
+    console.log(JSON.stringify(data.result, null, 2));
+  }
 }
 
 main().catch((error) => {

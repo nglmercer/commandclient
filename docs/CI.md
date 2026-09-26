@@ -28,25 +28,19 @@ shared                   ▼
 still runs and names the missing version instead of being skipped, so the
 failure report is specific.
 
-## Where CI runs
+## Recorded CI evidence
 
-GitHub Actions is **billing-locked on `nglmercer/commandclient`**: every job
-there is cancelled before it starts with
-
-```
-The job was not started because your account is locked due to a billing issue.
-```
-
-That is an account-level block; no workflow change fixes it. CI therefore runs
-on the **`hernan-lc/commandclient`** fork, and `ci-status.json` records which
-repository each result came from.
+`ci-status.json` currently records a historical run from the
+`hernan-lc/commandclient` fork. The generated version table labels this
+**Prior CI run** and prints its commit. Those results show which targets built
+in that run; they do not verify the current source or release.
 
 First green matrix there:
 [run 33277870501](https://github.com/hernan-lc/commandclient/actions/runs/33277870501) —
 all 14 Minecraft targets built, including 26.1/26.2 on Java 25 and 1.16.x on
 Java 8, plus the shared tests and the Minecraft-import gate.
 
-## Recording what CI verified
+## Recording a prior CI run
 
 ```bash
 python3 scripts/fetch-ci-status.py --repo hernan-lc/commandclient
@@ -54,14 +48,14 @@ python3 scripts/generate-version-table.py
 git commit -am "docs: record CI verification"
 ```
 
-`--repo` matters: without it the script reads the origin remote, which is the
-billing-locked repository. The generator marks a target CI verified only if
+`--repo` matters: without it the script reads the origin remote. The generator
+marks a target as built in the prior CI run only if
 `ci-status.json` says a matrix job for it concluded `success`; a local build
 can never set that column.
 
 `ci-status.json` is committed, so the tables regenerate identically from a
 clean checkout and `--check` behaves the same locally and on a runner. Refresh
-it and regenerate whenever you want the docs to reflect a newer run.
+it and regenerate when a newer run is available.
 
 ## Verifying the workflows without runners
 
@@ -89,5 +83,5 @@ python3 scripts/verify-builds.py
 python3 scripts/generate-version-table.py --check
 ```
 
-Those four commands are exactly what `aggregate` runs, so a green local run
-means the aggregate logic is sound even though the runner never started.
+Those four commands exercise the aggregate logic locally. A green local run
+does not mark a target as verified by CI.

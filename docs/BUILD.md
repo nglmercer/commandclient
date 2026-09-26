@@ -64,8 +64,9 @@ versions/<mc>/build.gradle        four lines: the Loom plugin id + the shared sc
 scripts/                          manifest, version table, CI status, verification
 ```
 
-A version module contains **no Java source**. It names a build family and an
-adapter family in `versions.json`, and the shared script wires up the rest.
+A version module normally contains no production Java source. It names a build
+family and an adapter family in `versions.json`, and the shared script wires up
+the rest. A module may contain a version-specific test under `src/test/java`.
 
 ## Java levels
 

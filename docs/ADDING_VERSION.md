@@ -1,6 +1,7 @@
 # Adding a Minecraft version
 
-Adding a target is a configuration change. A version module has no Java source:
+Adding a target usually needs only configuration. A version module normally has
+no production Java source:
 it names a **build family** (how it is compiled and packaged) and an **adapter
 family** (which Minecraft chat API it uses), both defined in `versions.json`.
 
@@ -66,7 +67,9 @@ a mismatch.
 ./gradlew :versions:1.21.12:build
 ```
 
-If it compiles, the existing adapter family fits and you are done with code.
+If it compiles, the adapter method names fit. Before treating the new target as
+runtime compatible, check its mixin targets and run the in-game checklist in
+[RUNTIME_VERIFICATION.md](RUNTIME_VERIFICATION.md).
 
 ## 4. Only if it does not compile: pick or add an adapter family
 
@@ -94,13 +97,16 @@ register it under `adapterFamilies` in `versions.json`, and point the version at
 it. For a one-off quirk, set `"adapterFamily": "custom"` and put the class in
 `versions/<id>/src/main/java/`.
 
-A new or custom family must also keep the `/commandapi` chat commands working:
+A new or custom family must also keep the `/commandapi` chat commands and
+completion working:
 add a mixin that intercepts the generation's outgoing command path and calls
 `CommandApiCommands.dispatchCommand` (or `dispatchChat` when the slash is still
 attached), cancelling the send when it returns true — see the three existing
 mixins. Pass the local player as the receiver, not the mixin target: when the
 target is the connection rather than the player, replies silently degrade to
-log-only output. Ship its config as `commandapi.mixins.json`: for built-in families that
+log-only output. Register `CommandApiSuggestionsMixin` in the mixin config so
+the command tree offers Tab completion after login and reconnect. Ship the
+config as `commandapi.mixins.json`: for built-in families that
 means `adapters/<family>/src/main/resources/commandapi.mixins.json` (picked up
 automatically); for `custom` put it in `versions/<id>/src/main/resources`.
 `fabric.mod.json` already lists that file name, and Loom generates the refmap.
@@ -148,6 +154,6 @@ CI picks the target up automatically: the matrix is generated from
 
 ## 9. Runtime verification
 
-Building is not proof it works. If the target introduces a new adapter family,
-run the checklist in [RUNTIME_VERIFICATION.md](RUNTIME_VERIFICATION.md) before
-claiming support, then set `runtimeVerified`.
+Building is not proof it works. Run the checklist in
+[RUNTIME_VERIFICATION.md](RUNTIME_VERIFICATION.md) for the exact new target
+before setting its `runtimeVerified` field to `true`.

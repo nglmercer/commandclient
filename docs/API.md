@@ -1,9 +1,10 @@
 # API reference
 
 Command API is a **client-side** mod. The HTTP server runs inside your
-Minecraft client and acts as your player: it sends chat messages and commands
-exactly as if you had typed them. It cannot administrate a dedicated server,
-read the player list or stop a server.
+Minecraft client and acts as your player: it submits chat messages and commands
+through the same client methods used for typed input. A successful HTTP response
+does not prove a server accepted or executed a command. It cannot administrate
+a dedicated server, read the player list or stop a server.
 
 Base URL: `http://127.0.0.1:<port>` — the port is automatic by default
 (`"port": 0` in `config/commandapi.json`), so read it from the game log or
@@ -30,8 +31,9 @@ Authorization: Bearer a-long-random-string
 ```
 
 Requests without a valid token get `401`. Authentication is skipped when
-`authEnabled` is `false` or the token is empty — which is why the server binds
-loopback by default. Tokens are never written to the log.
+`authEnabled` is `false` or the token is empty. The default host is loopback;
+set a nonempty token and enable authentication before exposing the bind address.
+Tokens are never written to the log.
 
 ## `GET /api/status`
 
@@ -43,7 +45,7 @@ curl http://127.0.0.1:8080/api/status
 {
   "status": "running",
   "mode": "client-chat",
-  "mod_version": "1.1.0+mc1.16.1",
+  "mod_version": "1.3.2+mc1.16.1",
   "minecraft_version": "1.16.1",
   "host": "127.0.0.1",
   "port": 8080,
@@ -59,12 +61,25 @@ curl http://127.0.0.1:8080/api/status
 }
 ```
 
-`player_name` is present only when `in_world` is `true`.
+`player_name` is present only when `in_world` is `true`. A player can briefly
+exist without a usable server connection during transitions; a send in that
+interval can return an entry with `"success": false`.
 
 ## `POST /api/chat`
 
 Sends one or more messages as the local player. A message starting with `/` is
-sent as a command.
+submitted as a command. Join a world before sending. The JSON body must be an
+object containing one of these fields:
+
+| Field | Type | Result |
+|---|---|---|
+| `text` | string | One message; response contains `result` |
+| `command` | string | Alias for `text`; include the leading `/` to send a command |
+| `messages` | array of strings | One to 32 messages in order; response contains `results` |
+
+An empty string, empty `messages` array, or non-string entry returns `400`.
+If more than one field is present, the parser uses `text`, then `command`, then
+`messages`. Use one field per request to avoid ambiguity.
 
 ### One message
 
@@ -81,7 +96,8 @@ curl -X POST http://127.0.0.1:8080/api/chat \
 }
 ```
 
-`{"command": "..."}` is accepted as an alias for `{"text": "..."}`.
+The legacy form `{"command": "/seed"}` has the same response shape. The
+`command` field does not add a slash for you.
 
 ### Several messages
 
@@ -103,6 +119,14 @@ curl -X POST http://127.0.0.1:8080/api/chat \
 
 Messages are sent in order. A failure of one entry does not abort the rest: the
 HTTP status stays `200` and the failing entry carries `"success": false`.
+The outer `"success": true` means the request was handled; inspect every
+entry to see which submissions succeeded. Even an entry with `"success": true`
+only confirms submission to the Minecraft client. For example, a server can
+reject `/time set day` when the player lacks permission.
+
+A one-element `messages` array is still a batch and returns `results`, not
+`result`. For a batch request while out of world, HTTP `503` returns the same
+`results` array with a failed entry for each input.
 
 ### When you are not in a world
 
@@ -117,20 +141,26 @@ the normal shape so existing clients can still read `result` / `results`:
 }
 ```
 
-Earlier versions returned `200` here. Check the status code if you care about
-the difference between "sent" and "could not send".
+Earlier versions returned `200` here. Check the status code to distinguish an
+offline client from a request handled while in world.
 
 ## `POST /api/execute`
 
 Alias of `/api/chat`, kept so existing clients keep working. Same request and
-response format.
+response format. Both single and `messages` array bodies are accepted:
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/execute \
+  -H 'Content-Type: application/json' \
+  -d '{"messages": ["hello", "/seed"]}'
+```
 
 ## In-game commands
 
 Type `/commandapi ...` in chat to inspect and change the config without leaving
 the game. These lines are intercepted client-side: they are answered locally
-and never sent to the server. Every change is written to `commandapi.json` and
-applied at once: bind settings (`port`, `host`, `auth`, `token`) restart the
+and never sent to the server. Successful changes are written to
+`commandapi.json` and applied at once: bind settings (`port`, `host`, `auth`, `token`) restart the
 server on the new config, while `login` applies without a restart.
 
 When you join a world, the `status` summary (bound address, port mode, auth
@@ -155,22 +185,22 @@ and token state) is printed in chat automatically. Turn it off with
 |---|---|---|
 | Request body | 64 KiB | `413` |
 | Messages per batch | 32 | `400` |
-| Message length | 256 characters (Minecraft's own chat limit) | `400` |
+| Message length | 256 Java UTF-16 code units per entry | `400` |
 
 ## Errors
 
 | Status | When |
 |---|---|
-| `400` | body is not a JSON object, has no usable `text` / `messages` field, or breaks a limit |
+| `400` | body is not a JSON object, has no usable `text`, `command`, or `messages` field, or breaks a limit |
 | `401` | authentication enabled and the Bearer token is missing or wrong |
 | `404` | unknown endpoint |
-| `405` | wrong method (`/api/chat` is POST only, `/api/status` GET only); the response carries an `Allow` header |
+| `405` | wrong method (`/api/chat` and `/api/execute` are POST only, `/api/status` GET only); the response carries an `Allow` header |
 | `413` | request body over 64 KiB |
 | `503` | no player available — you are not in a world, so nothing was sent |
 | `500` | unexpected failure while handling the request |
 
-No request can kill a worker thread: every handler answers, even on an
-unexpected error.
+Handlers convert unexpected failures to JSON `500` when the connection is
+still open. A client that disconnects before the response cannot receive it.
 
 ```json
 { "error": "Missing 'text' or 'messages' field", "status": 400 }
@@ -178,9 +208,9 @@ unexpected error.
 
 ## Threading
 
-HTTP requests arrive on worker threads, but Minecraft may only be touched from
-the client thread. Every send is scheduled onto the client thread and the
-request waits up to 5 seconds for it; on timeout the entry reports
+HTTP requests arrive on worker threads, but Minecraft state is read and used on
+the client thread. Each operation is scheduled there and the request waits up
+to 5 seconds; on timeout a send entry reports
 `"Timed out waiting for the Minecraft client thread"`. This is handled once, in
 `ClientThreadBridge`, for all versions.
 
@@ -190,14 +220,14 @@ request waits up to 5 seconds for it; on timeout the entry reports
 const BASE_URL = 'http://127.0.0.1:8080';
 const TOKEN = null; // set when authEnabled is true
 
-async function send(text) {
+async function send(body) {
   const response = await fetch(`${BASE_URL}/api/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
     },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(body),
   });
 
   const data = await response.json();
@@ -207,7 +237,14 @@ async function send(text) {
   return data;
 }
 
-send('/seed').then(console.log).catch(console.error);
+async function main() {
+  console.log((await send({ text: '/seed' })).result);
+  console.log((await send({ messages: ['hello', '/seed'] })).results);
+}
+
+main().catch(console.error);
 ```
 
-See [example.js](example.js) for a runnable version.
+The first call returns `result`; the second returns `results`. This example
+uses Node.js 18 or newer, where `fetch` is built in. See [example.js](example.js)
+for a runnable client with single and batch modes.
