@@ -100,7 +100,7 @@ export PORT=$(python3 -c "import json; print(json.load(open('config/commandapi-a
    cache a stale player or connection.
 10. **Close Minecraft** and confirm the latest bound port is free and the address file is gone:
    ```bash
-   ss -ltn | grep $PORT || echo "port released"
+   ss -ltn "( sport = :$PORT )"  # no LISTEN row should remain
    ls config/commandapi-address.json || echo "address file removed"
    ```
 

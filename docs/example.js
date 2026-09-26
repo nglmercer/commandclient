@@ -4,7 +4,7 @@
 //
 // The port is automatic by default, so the client reads it from the address
 // file the mod rewrites on every start (override with COMMANDAPI_URL, and
-// point at another launcher profile with COMMANDAPI_CONFIG).
+// point at another profile's config directory with COMMANDAPI_CONFIG).
 
 const fs = require('fs');
 const os = require('os');

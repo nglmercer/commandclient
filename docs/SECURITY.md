@@ -53,7 +53,7 @@ What was reviewed and what the code does:
 | Network binding | Bound explicitly to `config.host`; loopback default. Never binds `0.0.0.0` implicitly. |
 | Bearer parsing | Requires the exact `Bearer ` prefix; a malformed or absent header is a 401, never a bypass. |
 | Token comparison | Length check, then a comparison that does not exit early for equal-length tokens. |
-| Auth bypass | Skipped only when `authEnabled` is false **or** the token is empty — both make the open state explicit. |
+| Auth bypass | Skipped when `authEnabled` is false **or** the token is empty. An empty token leaves the API open even if `authEnabled` is true. |
 | Token logging | Never logged. `ApiConfig.toString()` reports only whether a token is configured (there is a test for this). |
 | Request size | Capped at 64 KiB while reading; a larger body is a 413, and the read stops rather than buffering it all. |
 | Batch size | At most 32 messages per request. |
