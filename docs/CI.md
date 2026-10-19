@@ -37,6 +37,11 @@ the released commit. The `v` prefix of the tag may be upper or lower case;
 the version after it must equal `modVersion` exactly. See
 [releasing](RELEASING.md).
 
+Publishing a release in the web UI pushes the tag *and* fires a release
+event, which starts the workflow twice for the same tag. The `concurrency`
+group `release-<tag>` keeps one run per tag: the queued run takes over and
+the running one is stopped, so the release is built and published once.
+
 ## Recorded CI evidence
 
 `ci-status.json` currently records a historical run from the

@@ -30,6 +30,12 @@ The published release is titled `Command API v<modVersion>` whatever the tag
 is called; the release notes name the tag the artifacts were built from when
 it differs from that canonical form.
 
+Creating a release in the web UI pushes the tag and publishes the release, so
+both events start the release workflow. They share one concurrency group per
+tag, so only one run builds and publishes; the other is stopped. The same
+happens when the workflow creates the release itself: the release event it
+triggers is stopped and the release is updated in place.
+
 ## Separate server release
 
 Run `./gradlew buildAllVersions collectServerArtifact verifyBuilds` before release.
